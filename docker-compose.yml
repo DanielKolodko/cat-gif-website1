@@ -1,0 +1,12 @@
+version: '3.9'
+services:
+  flask-app:
+    build: .
+    ports:
+      - "${PORT}:${PORT}"
+    volumes:
+      - .:/app
+    environment:
+      - FLASK_ENV=development
+    env_file:
+      - .env
