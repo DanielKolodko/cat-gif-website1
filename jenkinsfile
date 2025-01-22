@@ -25,7 +25,7 @@ pipeline {
             steps {
                 script {
                     echo "Building Docker image..."
-                    bat 'docker build -t ${IMAGE_NAME}:latest .'
+                    bat "docker build -t ${env.IMAGE_NAME}:latest ."
                 }
             }
         }
@@ -34,7 +34,7 @@ pipeline {
             steps {
                 script {
                     echo "Running Docker container to test..."
-                    bat 'docker run --rm -d --name test-container -p 5000:5000 ${IMAGE_NAME}:latest'
+                    bat "docker run --rm -d --name test-container -p 5000:5000 ${env.IMAGE_NAME}:latest"
                     
                     // Adding a slight delay to make sure the container is ready
                     bat 'ping 127.0.0.1 -n 6 >nul'
@@ -65,7 +65,7 @@ pipeline {
             steps {
                 script {
                     echo "Pushing Docker image to Docker Hub..."
-                    bat 'docker push ${IMAGE_NAME}:latest'
+                    bat "docker push ${env.IMAGE_NAME}:latest"
                 }
             }
         }
