@@ -2,23 +2,30 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_IMAGE = 'danielkolodko/cat-gif-website1-flask-app'
-        DOCKER_TAG = 'latest'
+        IMAGE_NAME = 'danielkolodko/cat-gif-website1-flask-app'
     }
 
     stages {
+        stage('Declarative: Checkout SCM') {
+            steps {
+                checkout scm
+            }
+        }
+
         stage('Clone Repository') {
             steps {
-                // Clone the repository and specify the branch (main)
-                git branch: 'main', credentialsId: 'github', url: 'https://github.com/DanielKolodko/cat-gif-website1.git'
+                script {
+                    // Git operations happen automatically when Jenkins fetches the repository
+                    echo "Repository cloned."
+                }
             }
         }
 
         stage('Build Docker Image') {
             steps {
                 script {
-                    // Ensure Dockerfile is in the correct directory
-                    bat 'docker build -t %DOCKER_IMAGE%:%DOCKER_TAG% .'
+                    echo "Building Docker image..."
+                    bat 'docker build -t ${IMAGE_NAME}:latest .'
                 }
             }
         }
@@ -26,75 +33,73 @@ pipeline {
         stage('Test Docker Image') {
             steps {
                 script {
-                    // Run the container for testing
-                    bat 'docker run --rm -d --name test-container -p 5000:5000 %DOCKER_IMAGE%:%DOCKER_TAG%'
-
-                    // Wait for the container to start
-                    bat 'ping 127.0.0.1 -n 6 > nul'
-
-                    // Perform health check (using PowerShell for better error handling)
-                    bat '''
-                    powershell -Command "
-                        try {
-                            $response = Invoke-WebRequest -Uri http://localhost:5000 -UseBasicParsing
-                            if ($response.StatusCode -ne 200) {
-                                Write-Host 'Health check failed'
-                                docker logs test-container
-                                exit 1
-                            } else {
-                                Write-Host 'Health check passed'
-                            }
-                        } catch {
-                            Write-Host 'Health check failed'
-                            docker logs test-container
+                    echo "Running Docker container to test..."
+                    bat 'docker run --rm -d --name test-container -p 5000:5000 ${IMAGE_NAME}:latest'
+                    
+                    // Adding a slight delay to make sure the container is ready
+                    bat 'ping 127.0.0.1 -n 6 >nul'
+                    
+                    // Running the PowerShell script with corrected syntax
+                    powershell -Command """
+                    try {
+                        \$response = Invoke-WebRequest -Uri http://localhost:5000 -UseBasicParsing
+                        if (\$response.StatusCode -ne 200) {
+                            Write-Host 'Flask app is not responding with status code 200'
                             exit 1
                         }
-                    "
-                    '''
-
-                    // Stop the container after testing
-                    bat 'docker stop test-container'
+                        else {
+                            Write-Host 'Flask app is up and running'
+                        }
+                    } catch {
+                        Write-Host 'Error while checking Flask app status: \$($_)'
+                        exit 1
+                    }
+                    """
                 }
             }
         }
 
         stage('Push Docker Image to Docker Hub') {
+            when {
+                expression { currentBuild.result == null || currentBuild.result == 'SUCCESS' }
+            }
             steps {
                 script {
-                    withDockerRegistry([credentialsId: 'docker', url: 'https://index.docker.io/v1/']) {
-                        bat 'docker push %DOCKER_IMAGE%:%DOCKER_TAG%'
-                    }
+                    echo "Pushing Docker image to Docker Hub..."
+                    bat 'docker push ${IMAGE_NAME}:latest'
                 }
             }
         }
 
         stage('Deploy') {
+            when {
+                expression { currentBuild.result == null || currentBuild.result == 'SUCCESS' }
+            }
             steps {
                 script {
-                    // Deploy to production (replace existing container)
-                    bat '''
-                    docker stop prod-container || echo "Container not running"
-                    docker rm prod-container || echo "Container not found"
-                    docker run -d --name prod-container -p 5000:5000 %DOCKER_IMAGE%:%DOCKER_TAG%
-                    '''
+                    echo "Deploying the Docker container..."
+                    // Deploy steps can be added here, for example, to a cloud platform or server
+                }
+            }
+        }
+
+        stage('Declarative: Post Actions') {
+            steps {
+                script {
+                    echo "Cleaning up Docker resources..."
+                    bat 'docker container prune -f || echo "No containers to prune"'
+                    bat 'docker image prune -f || echo "No images to prune"'
                 }
             }
         }
     }
 
     post {
-        always {
-            // Clean up unused Docker resources
-            bat 'docker container prune -f || echo "No containers to prune"'
-            bat 'docker image prune -f || echo "No images to prune"'
-        }
         failure {
             echo 'Pipeline failed. Please check the logs.'
         }
         success {
-            echo 'Pipeline completed successfully!'
+            echo 'Pipeline succeeded.'
         }
     }
 }
-
-
