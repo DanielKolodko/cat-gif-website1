@@ -40,21 +40,20 @@ pipeline {
                     bat 'ping 127.0.0.1 -n 6 >nul'
                     
                     // Running the PowerShell script with corrected syntax
-                    powershell -Command """
+                    powershell '''
                     try {
-                        \$response = Invoke-WebRequest -Uri http://localhost:5000 -UseBasicParsing
-                        if (\$response.StatusCode -ne 200) {
-                            Write-Host 'Flask app is not responding with status code 200'
+                        $response = Invoke-WebRequest -Uri http://localhost:5000 -UseBasicParsing
+                        if ($response.StatusCode -ne 200) {
+                            Write-Host "Flask app is not responding with status code 200"
                             exit 1
-                        }
-                        else {
-                            Write-Host 'Flask app is up and running'
+                        } else {
+                            Write-Host "Flask app is up and running"
                         }
                     } catch {
-                        Write-Host 'Error while checking Flask app status: \$($_)'
+                        Write-Host "Error while checking Flask app status: $($_)"
                         exit 1
                     }
-                    """
+                    '''
                 }
             }
         }
