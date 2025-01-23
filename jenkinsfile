@@ -37,7 +37,7 @@ pipeline {
                     bat "docker run --rm -d --name test-container -p 5000:5000 ${env.IMAGE_NAME}:latest"
                     
                     // Adding a slight delay to make sure the container is ready
-                    bat 'ping 127.0.0.1 -n 6 >nul'
+                    bat 'ping 127.0.0.1 -n 20 >nul'
                     
                     // Running the PowerShell script with corrected syntax
                     powershell '''
