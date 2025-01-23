@@ -15,6 +15,43 @@ PORT = int(os.getenv('PORT', 5000))
 app = Flask(__name__)
 app.secret_key = SECRET_KEY
 
+# Function to initialize the database and create the 'gifs' table if it doesn't exist
+def init_db():
+    # Resolve the correct path to the SQLite database
+    db_path = DATABASE_URL
+    if db_path.startswith("sqlite:///"):
+        db_path = db_path.replace("sqlite:///", "")  # Remove the prefix for sqlite3 compatibility
+
+    # Connect to the database and create the table
+    try:
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+
+        # Create the 'gifs' table if it doesn't exist
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS gifs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                url TEXT NOT NULL
+            )
+        ''')
+
+        # Add sample GIF URLs if the table is empty
+        cursor.execute("SELECT COUNT(*) FROM gifs")
+        if cursor.fetchone()[0] == 0:
+            sample_gifs = [
+                "https://media.giphy.com/media/JIX9t2j0ZTN9S/giphy.gif",
+                "https://media.giphy.com/media/mlvseq9yvZhba/giphy.gif",
+                "https://media.giphy.com/media/13CoXDiaCcCoyk/giphy.gif"
+            ]
+            cursor.executemany("INSERT INTO gifs (url) VALUES (?)", [(gif,) for gif in sample_gifs])
+            conn.commit()
+            print("Sample GIFs added to the database.")
+
+        conn.close()
+        print("Database initialized successfully.")
+    except sqlite3.Error as e:
+        print(f"Database initialization error: {e}")
+
 # Function to get a random GIF URL from the database
 def get_random_cat_gif():
     # Resolve the correct path to the SQLite database
@@ -52,5 +89,7 @@ def index():
         return "No GIFs available or database error!", 500
 
 if __name__ == '__main__':
+    # Initialize the database before running the app
+    init_db()
     app.run(debug=True, host='0.0.0.0', port=PORT)
 
